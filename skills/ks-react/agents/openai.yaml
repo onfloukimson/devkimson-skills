@@ -1,0 +1,4 @@
+interface:
+  display_name: "KS React"
+  short_description: "React + TypeScript + Vite 프로젝트 구조 규칙을 적용합니다."
+  default_prompt: "React + TypeScript + Vite 프로젝트에서 기능, 엔티티, 공용 UI를 만들거나 수정할 때 ks_react 구조 규칙을 적용해줘."

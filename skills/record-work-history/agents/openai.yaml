@@ -1,0 +1,4 @@
+interface:
+  display_name: "Record Work History"
+  short_description: "Classify and record clear work updates safely"
+  default_prompt: "Use $record-work-history to classify this update and record it in the correct project history."

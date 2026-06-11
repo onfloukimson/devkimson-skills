@@ -1,0 +1,155 @@
+---
+name: morning-briefing
+description: Use when producing a daily KPA work briefing that must reconcile schedules, reminders, active tasks, daily logs, and project records before prioritizing work by execution type.
+---
+
+# Purpose
+
+Produce a complete daily work briefing that reduces cognitive load without omitting dated deployments, deadlines, verification, or follow-up work.
+
+# Required Knowledge
+
+- `AGENTS.md` sections `0.4.1`, `0.7.1`, `0.13.1`, and `0.14`
+- Target-date schedule under `ai-workspace/41-personal-schedule/daily/`
+- Relevant recurring reminders under `ai-workspace/42-notification-reminders/entries/`
+- `ai-workspace/40-tasks/checklist.md`
+- Active task records directly under `ai-workspace/40-tasks/`
+- Relevant raw daily logs under `ai-workspace/40-tasks/daily/raw/`
+- Relevant project metadata under `ai-workspace/95-projects/active/`
+- Relevant project rules and history under `ai-workspace/70-knowledge/domains/`
+
+# Inputs
+
+- Date or relative date for the briefing.
+- Optional project focus such as Cardtalk, Daldal English, SLP, or Nuvia.
+- Optional human-provided constraints such as meetings, deadlines, deployment windows, or blocked items.
+
+# Mandatory Source Lookup
+
+Use the DB-backed `agent_mcp` virtual filesystem first for ordinary workspace records. Use local files only for runtime files or when MCP is unavailable, and disclose that fallback.
+
+For every briefing, perform this lookup in order:
+
+1. Resolve the requested date to an absolute `YYYY-MM-DD` date.
+2. Look for the exact target-date schedule path:
+   - `ai-workspace/41-personal-schedule/daily/YYYY-MM-DD.md`
+3. Read active recurring reminders whose recurrence applies to the target date.
+4. Read `ai-workspace/40-tasks/checklist.md`.
+5. List and inspect active task records directly under `ai-workspace/40-tasks/`, excluding templates, indexes, `done.md`, and `daily/`.
+6. Select every task whose body contains any of the following:
+   - target date, deployment date, deadline, verification date, or follow-up date equal to the briefing date
+   - status indicating implementation complete but deployment, QA, verification, approval, or reporting remains
+   - overdue or date-unknown follow-up that still has an open completion criterion
+7. Read the target-date raw log when present. Also read the latest prior raw log when it contains unfinished work carried into the target date.
+8. For selected project tasks, read project metadata first, then project `rules.md`, then only the linked knowledge records needed to verify status and scope.
+
+The absence of an exact daily schedule file does not permit an empty or partial briefing. Continue the task reverse lookup and report the schedule-file gap.
+
+# Workflow
+
+1. Build a source inventory with `found`, `missing`, or `not applicable` for:
+   - exact daily schedule
+   - recurring reminders
+   - central checklist
+   - active task records
+   - raw logs
+   - linked project records
+2. Build one candidate item list from all sources before prioritizing.
+3. Deduplicate the same work across schedule, checklist, task, raw log, and project history.
+4. Split each item into exactly one execution group:
+   - `직접 구현`: code, publishing, frontend, API, DB, BO, configuration, or script changes the human or Nova must actively perform.
+   - `검증/배포`: staging, production, QA, merge, release, smoke test, Dooray state follow-up, or post-deploy confirmation.
+   - `외부 대기`: assignee reply, policy decision, design/spec confirmation, access/account, client/team response, or date-dependent external confirmation.
+   - `보고/정리`: daily report, briefing, Dooray comment draft, task/checklist update, raw log, knowledge entry, or stakeholder summary.
+5. Evaluate every candidate against the briefing date:
+   - documented status and evidence date
+   - target, deployment, deadline, or follow-up date
+   - remaining prerequisite or completion criterion
+   - next concrete action and owner
+   - risk of waiting until the next work window
+6. Include all items explicitly dated for the briefing date. The one-or-two-item focus limit applies only to `직접 구현`; it must never hide same-day deployments, verification, deadlines, meetings, or required reports.
+7. Choose at most two `직접 구현` focus items unless the human asks for more.
+8. List follow-up checks separately with owner, next action, and aging risk.
+9. Mark items intentionally excluded from focus and explain why.
+10. Run the completeness gate before answering.
+
+# Completeness Gate
+
+Do not publish the briefing until all checks pass:
+
+- Every exact-date schedule item appears in the briefing or in `오늘 제외` with a reason.
+- Every active task whose deployment, deadline, verification, or follow-up date equals the briefing date appears in the briefing.
+- `IMPLEMENTATION_DONE_WAITING_DEPLOYMENT` and equivalent states are treated as open `검증/배포`, not completed work.
+- Schedule and task records are cross-checked. If a dated task is absent from the daily schedule, include the task and report `일정 원장 누락`.
+- Conflicting status or dates are shown as a discrepancy; do not silently choose one source.
+- Missing source files are disclosed.
+- Every included item has a source path.
+
+# Briefing-Date Judgment
+
+- Use the requested briefing date as the temporal baseline.
+- Consider deadline proximity, remaining work, dependencies, verification windows, and waiting time together.
+- A `진행 중` item may still need a same-day decision or verification.
+- A `미착수` item with a distant deadline may be intentionally excluded from focus.
+- A `완료` implementation may still require deployment, post-deploy verification, Dooray status follow-up, or reporting.
+- An overdue or deadline-unknown item must surface the missing evidence needed to assess it.
+- Clearly label documented facts and inference. Never invent a deadline, completion state, owner, or dependency.
+
+# Output
+
+- `오늘 필수 일정`: all same-day deployments, deadlines, meetings, verification, and reporting obligations.
+- `오늘 집중`: one or two direct implementation focus items.
+- `실행 유형별 목록`: `직접 구현`, `검증/배포`, `외부 대기`, `보고/정리`.
+- `후속 확인 누적 방지`: open checks with owner, next action, and aging risk.
+- `KPA가 맡을 것`: tracking, reminders, report drafting, and status reconciliation.
+- `사람이 직접 할 것`: implementation, approval, business judgment, external communication requiring human voice, and risky operations.
+- `오늘 제외`: intentionally deferred items and reasons.
+- `일정·태스크 정합성`: missing schedule records, conflicting statuses, and missing evidence.
+- `출처`: paths used for the briefing.
+
+# Safety Rules
+
+- Do not claim completion from missing evidence.
+- Do not convert external waiting into a human implementation task.
+- Do not include private personal schedule details unless needed for workload planning.
+- Do not create new tasks or update status unless the user requested state changes.
+- Keep project facts separate from inference.
+- Do not judge urgency from status labels alone.
+- Do not treat the briefing date as the deadline unless a source explicitly says so.
+- Prefer fewer direct focus items, but never omit same-day mandatory work.
+
+# KPA Ownership Defaults
+
+KPA should proactively own:
+
+- daily priority briefing
+- mandatory schedule and active-task reconciliation
+- grouping work by execution type
+- follow-up check aging and resurfacing
+- distinguishing direct work from waiting states
+- report draft generation from raw logs
+- status diffs across schedule, checklist, tasks, daily logs, and project history
+
+The human should retain:
+
+- final priority override
+- architecture and product judgment
+- code implementation when not delegated
+- external stakeholder replies unless explicitly drafted for review
+- destructive, production, credential, or migration approval
+
+# Incident References
+
+- 2026-06-11: Cardtalk CT-24 revision-year removal production deployment was omitted because no exact-date schedule file existed and the previous workflow did not require reverse lookup of active task records by deployment date.
+
+# Verification
+
+- Exact-date schedule lookup was attempted and its presence or absence is disclosed.
+- Active task records were inspected, not only the central checklist.
+- Every same-day deployment, deadline, verification, meeting, and reporting obligation is included.
+- Every listed item belongs to exactly one execution group.
+- Focus contains no more than two direct implementation items by default.
+- Follow-up checks include a concrete next action or are explicitly marked unclear.
+- Waiting items are not presented as urgent direct implementation unless evidence supports it.
+- Inferred urgency, risk, or relationship is clearly distinguished from documented facts.
+- Source paths are included.
