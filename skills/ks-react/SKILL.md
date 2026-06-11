@@ -1,85 +1,69 @@
 ---
 name: ks-react
-description: "Apply KS React conventions when implementing, reviewing, or refactoring React, TypeScript, or Vite frontend code in KS projects."
+description: React + TypeScript + Vite 프로젝트 구조 및 UI 규칙. Knock client 기준 FSD-lite 레이어, MUI 9 테마/토큰, shared/ui·form 컴포넌트 계층을 적용합니다.
 ---
 
-# Ks React
+# KS React
 
-## Overview
+Knock `client/`를 기준으로 한 KS 개인 프로젝트 React 규칙.
 
-[TODO: 1-2 sentences explaining what this skill enables]
+## 폴더 구조 (FSD-lite)
 
-## Structuring This Skill
+```txt
+src/
+├── app/          # Router, ProtectedRoute, Providers
+├── api/          # axios, endpoints, domain API, mock
+├── stores/       # zustand (use*Store.ts)
+├── pages/        # <route>/ui/<Name>Page.tsx — widget 조합만
+├── widgets/      # kebab-case/ + PascalCase.tsx
+└── shared/
+    ├── theme/    # tokens.ts, darkTheme.ts
+    ├── ui/       # Panel, SectionHeader, SplitPane, StatusChip, EmptyState
+    ├── form/     # KeyValueTable, HttpMethodSelect, BodyEditor, VariableHintTextField
+    ├── components/index.ts  # barrel re-export
+    ├── hooks/
+    └── utils/
+```
 
-[TODO: Choose the structure that best fits this skill's purpose. Common patterns:
+## 레이어 역할
 
-**1. Workflow-Based** (best for sequential processes)
-- Works well when there are clear step-by-step procedures
-- Example: DOCX skill with "Workflow Decision Tree" -> "Reading" -> "Creating" -> "Editing"
-- Structure: ## Overview -> ## Workflow Decision Tree -> ## Step 1 -> ## Step 2...
+- **pages**: 상태 최소, widget 배치만
+- **widgets**: 도메인 UI 블록 (Query + Zustand 연동)
+- **shared/ui**: 레이아웃·표시 primitive
+- **shared/form**: 입력·편집 컴포넌트
+- **api**: mock/real 동일 시그니처
 
-**2. Task-Based** (best for tool collections)
-- Works well when the skill offers different operations/capabilities
-- Example: PDF skill with "Quick Start" -> "Merge PDFs" -> "Split PDFs" -> "Extract Text"
-- Structure: ## Overview -> ## Quick Start -> ## Task Category 1 -> ## Task Category 2...
+## 스타일링 (MUI 9)
 
-**3. Reference/Guidelines** (best for standards or specifications)
-- Works well for brand guidelines, coding standards, or requirements
-- Example: Brand styling with "Brand Guidelines" -> "Colors" -> "Typography" -> "Features"
-- Structure: ## Overview -> ## Guidelines -> ## Specifications -> ## Usage...
+- `sx` + `createTheme` `styleOverrides` 사용
+- `styled()` / `@emotion/styled` 지양
+- spacing·layout 값은 `shared/theme/tokens.ts` 참조 (magic number 금지)
+- `size="small"` 기본 (theme `defaultProps`)
+- MUI 9 slot API: `slotProps` (deprecated `*TypographyProps` 대신)
 
-**4. Capabilities-Based** (best for integrated systems)
-- Works well when the skill provides multiple interrelated features
-- Example: Product Management with "Core Capabilities" -> numbered capability list
-- Structure: ## Overview -> ## Core Capabilities -> ### 1. Feature -> ### 2. Feature...
+## UI 위계
 
-Patterns can be mixed and matched as needed. Most skills combine patterns (e.g., start with task-based, add workflow for complex operations).
+1. `SectionHeader` — 11px uppercase section label + optional actions
+2. `Panel` — paper 배경, 12px padding, optional border
+3. Content — tabs, tables, editors
 
-Delete this entire "Structuring This Skill" section when done - it's just guidance.]
+## 액션 버튼 규칙
 
-## [TODO: Replace with the first main section based on chosen structure]
+- **contained primary**: 화면당 하나 (Send)
+- **outlined**: Save, secondary actions
+- **text**: Manage, Add row
 
-[TODO: Add content here. See examples in existing skills:
-- Code samples for technical skills
-- Decision trees for complex workflows
-- Concrete examples with realistic user requests
-- References to scripts/templates/references as needed]
+## 네이밍
 
-## Resources (optional)
+| 영역 | 규칙 |
+|------|------|
+| widgets | `widgets/app-shell/AppShell.tsx` |
+| pages | `pages/login/ui/LoginPage.tsx` |
+| stores | `useAuthStore.ts` |
+| api | `api/auth/authApi.ts` |
+| path alias | `@/*` → `src/*` |
 
-Create only the resource directories this skill actually needs. Delete this section if no resources are required.
+## 참고 문서
 
-### scripts/
-Executable code (Python/Bash/etc.) that can be run directly to perform specific operations.
-
-**Examples from other skills:**
-- PDF skill: `fill_fillable_fields.py`, `extract_form_field_info.py` - utilities for PDF manipulation
-- DOCX skill: `document.py`, `utilities.py` - Python modules for document processing
-
-**Appropriate for:** Python scripts, shell scripts, or any executable code that performs automation, data processing, or specific operations.
-
-**Note:** Scripts may be executed without loading into context, but can still be read by Codex for patching or environment adjustments.
-
-### references/
-Documentation and reference material intended to be loaded into context to inform Codex's process and thinking.
-
-**Examples from other skills:**
-- Product management: `communication.md`, `context_building.md` - detailed workflow guides
-- BigQuery: API reference documentation and query examples
-- Finance: Schema documentation, company policies
-
-**Appropriate for:** In-depth documentation, API references, database schemas, comprehensive guides, or any detailed information that Codex should reference while working.
-
-### assets/
-Files not intended to be loaded into context, but rather used within the output Codex produces.
-
-**Examples from other skills:**
-- Brand styling: PowerPoint template files (.pptx), logo files
-- Frontend builder: HTML/React boilerplate project directories
-- Typography: Font files (.ttf, .woff2)
-
-**Appropriate for:** Templates, boilerplate code, document templates, images, icons, fonts, or any files meant to be copied or used in the final output.
-
----
-
-**Not every skill requires all three types of resources.**
+- Knock UI spec: `client/docs/ui-spec.md`
+- Knock architecture: `client/docs/architecture.md`
