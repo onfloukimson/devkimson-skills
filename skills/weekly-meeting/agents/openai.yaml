@@ -1,0 +1,4 @@
+interface:
+  display_name: "Weekly Meeting"
+  short_description: "Prepare complete, spoken weekly work updates"
+  default_prompt: "Use $weekly-meeting to summarize this week's completed and ongoing work and next week's plans for a spoken meeting update."
