@@ -1,0 +1,4 @@
+interface:
+  display_name: "React Flow"
+  short_description: "React Flow(@xyflow/react) 그래프 UI 구현 가이드를 적용합니다."
+  default_prompt: "React Flow로 노드·엣지 캔버스를 만들거나 수정할 때 reactflow 스킬 가이드를 적용해줘."
