@@ -84,6 +84,7 @@ Do not publish the briefing until all checks pass:
 - Conflicting status or dates are shown as a discrepancy; do not silently choose one source.
 - Missing source files are disclosed.
 - Every included item has a source path.
+- Every Dooray/Cardtalk work item includes `#number` and the **documented ticket title** (or `(제목 미기록 — 확인 필요)`).
 
 # Briefing-Date Judgment
 
@@ -115,6 +116,61 @@ Examples:
 - `#135 · 검증 배포 예정일 2026-06-17 14:00 · 현재(2026-06-16) 기준 개발계·FE 연동 완료, 검증계는 내일 예정`
 - `CT-23 · 1차 묶음 검증 배포 예정일(로드맵) 별도 · 현재(2026-06-16) 기준 검증계 배포 완료(2026-06-15), 운영 배포 대기`
 - `#498/#505 · 별도 예정일 없음 · 현재(2026-06-16) 기준 검증계 배포(2026-05-28)·검증 완료 — 브리핑 제외`
+
+# Ticket Label Format
+
+Humans cannot identify work from ticket numbers alone. Every briefing line that references Dooray or Cardtalk work MUST include the **full ticket title** from source records, not just `#N` or `CT-N`.
+
+## Required pattern
+
+Use this order:
+
+```txt
+#<number> `<Dooray title as recorded>`
+```
+
+When both CT alias and Dooray number exist:
+
+```txt
+CT-<n> / #<number> `<Dooray title as recorded>`
+```
+
+Optional project prefix when it reduces ambiguity:
+
+```txt
+[Cardtalk] CT-23 / #23 `[06/01] OX퀴즈판 정/오답 최소 문항 개수 정책 제외 건`
+[Daldal] #135 `(05/28) 달달영어 공통_서비스 점검 페이지_시크릿 게이트 작업 요청`
+```
+
+## Rules
+
+- Never publish a briefing bullet that is only `#135`, `#23`, or `CT-17`.
+- Prefer the exact Dooray title string from task/knowledge metadata (`Title`, `Dooray Metadata`, checklist task name).
+- If title is missing in sources, write `#N (제목 미기록 — 확인 필요)` and do not invent a title.
+- Bundle or sprint lines must still list **each ticket with its title**, or one bundle line plus an indented sub-list with `#N + title` per item.
+- Tables (`후속 확인`, `실행 유형별`) must have a **제목** column or embed title in the label cell.
+
+## Bad vs good
+
+Bad:
+
+```txt
+- CT-23 검증계 배포 완료
+- #135 내일 검증 배포
+- #4, #5, #12 1차 완료
+```
+
+Good:
+
+```txt
+- CT-23 / #23 `[06/01] OX퀴즈판 정/오답 최소 문항 개수 정책 제외 건` — 검증계 배포 완료, 운영 대기
+- #135 `(05/28) 달달영어 공통_서비스 점검 페이지_시크릿 게이트 작업 요청` — 검증 배포 예정일 2026-06-17 14:00
+- 1차 개발 묶음:
+  - #4 `[04/14] 메인 검색 영역 개선`
+  - #5 `[04/20] 이용 안내 버튼 변경`
+  - #12 `[05/12] 보너스 카드 툴팁 추가 건`
+  - #23 `[06/01] OX퀴즈판 정/오답 최소 문항 개수 정책 제외 건`
+```
 
 # Output
 
@@ -162,6 +218,7 @@ The human should retain:
 # Incident References
 
 - 2026-06-11: Cardtalk CT-24 revision-year removal production deployment was omitted because no exact-date schedule file existed and the previous workflow did not require reverse lookup of active task records by deployment date.
+- 2026-06-16: Cardtalk June 1st bundle (#4/#5/#12/#23) was under-represented in briefing because deployment history named only CT-23 explicitly and lines used ticket numbers without titles, reducing scanability and causing completed bundle work to look like only the OX ticket mattered.
 
 # Verification
 
@@ -174,3 +231,4 @@ The human should retain:
 - Waiting items are not presented as urgent direct implementation unless evidence supports it.
 - Inferred urgency, risk, or relationship is clearly distinguished from documented facts.
 - Source paths are included.
+- Every Dooray/Cardtalk item shows ticket number **and** documented title (not number-only bullets).
