@@ -95,6 +95,27 @@ Do not publish the briefing until all checks pass:
 - An overdue or deadline-unknown item must surface the missing evidence needed to assess it.
 - Clearly label documented facts and inference. Never invent a deadline, completion state, owner, or dependency.
 
+# Verification Deploy Status Wording
+
+When describing deployment or verification items in briefings, always separate:
+
+1. **Scheduled verification deploy date** — `검증 배포 예정일 YYYY-MM-DD` (sprint, bundle, or ticket schedule)
+2. **Current environment state as of briefing date** — `현재(YYYY-MM-DD) 기준 …`
+
+Rules:
+
+- If verification environment already has the deployment before the official schedule date, state both explicitly.
+- Do not say only `검증 배포 완료` when a separate scheduled date exists in sources.
+- Do not say only `검증 배포 예정` when verification environment already reflects the deployment before that date.
+- Apply to Cardtalk bundle deploys, sprint verification deploys, and individual ticket staging work alike.
+- For completed verification work, do not surface the item in `외부 대기`, `후속 확인`, or open `검증/배포` unless a new dated obligation exists in sources.
+
+Examples:
+
+- `#135 · 검증 배포 예정일 2026-06-17 14:00 · 현재(2026-06-16) 기준 개발계·FE 연동 완료, 검증계는 내일 예정`
+- `CT-23 · 1차 묶음 검증 배포 예정일(로드맵) 별도 · 현재(2026-06-16) 기준 검증계 배포 완료(2026-06-15), 운영 배포 대기`
+- `#498/#505 · 별도 예정일 없음 · 현재(2026-06-16) 기준 검증계 배포(2026-05-28)·검증 완료 — 브리핑 제외`
+
 # Output
 
 - `오늘 필수 일정`: all same-day deployments, deadlines, meetings, verification, and reporting obligations.
