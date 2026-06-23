@@ -1,11 +1,13 @@
 ---
 name: morning-briefing
-description: Use when producing a daily KPA work briefing that must reconcile schedules, reminders, active tasks, daily logs, and project records before prioritizing work by execution type.
+description: Use when producing or reusing a cached daily KPA work briefing. First check today's MCP briefing cache, return it when present, and only reconcile schedules, reminders, active tasks, daily logs, and project records when no cache exists or a refresh is requested.
 ---
 
 # Purpose
 
 Produce a complete daily work briefing that reduces cognitive load without omitting dated deployments, deadlines, verification, or follow-up work.
+
+Prioritize token efficiency. A briefing generated once for a date should be stored as an MCP resource and reused for later same-day briefing requests.
 
 # Required Knowledge
 
@@ -17,6 +19,7 @@ Produce a complete daily work briefing that reduces cognitive load without omitt
 - Relevant raw daily logs under `ai-workspace/40-tasks/daily/raw/`
 - Relevant project metadata under `ai-workspace/95-projects/active/`
 - Relevant project rules and history under `ai-workspace/70-knowledge/domains/`
+- Cached briefing resource under `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`
 
 # Inputs
 
@@ -31,23 +34,28 @@ Use the DB-backed `agent_mcp` virtual filesystem first for ordinary workspace re
 For every briefing, perform this lookup in order:
 
 1. Resolve the requested date to an absolute `YYYY-MM-DD` date.
-2. Look for the exact target-date schedule path:
+2. Look for the exact briefing cache path:
+   - `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`
+3. If the cache exists, read it and return its stored briefing content. Do not re-run the full source lookup unless the user explicitly asks to refresh, regenerate, update, latest, 최신화, 다시 정리, or 캐시 무시.
+4. If the cache does not exist, continue the full source lookup below and store the final briefing at the cache path before answering.
+5. Look for the exact target-date schedule path:
    - `ai-workspace/41-personal-schedule/daily/YYYY-MM-DD.md`
-3. Read active recurring reminders whose recurrence applies to the target date.
-4. Read `ai-workspace/40-tasks/checklist.md`.
-5. List and inspect active task records directly under `ai-workspace/40-tasks/`, excluding templates, indexes, `done.md`, and `daily/`.
-6. Select every task whose body contains any of the following:
+6. Read active recurring reminders whose recurrence applies to the target date.
+7. Read `ai-workspace/40-tasks/checklist.md`.
+8. List and inspect active task records directly under `ai-workspace/40-tasks/`, excluding templates, indexes, `done.md`, and `daily/`.
+9. Select every task whose body contains any of the following:
    - target date, deployment date, deadline, verification date, or follow-up date equal to the briefing date
    - status indicating implementation complete but deployment, QA, verification, approval, or reporting remains
    - overdue or date-unknown follow-up that still has an open completion criterion
-7. Read the target-date raw log when present. Also read the latest prior raw log when it contains unfinished work carried into the target date.
-8. For selected project tasks, read project metadata first, then project `rules.md`, then only the linked knowledge records needed to verify status and scope.
+10. Read the target-date raw log when present. Also read the latest prior raw log when it contains unfinished work carried into the target date.
+11. For selected project tasks, read project metadata first, then project `rules.md`, then only the linked knowledge records needed to verify status and scope.
 
 The absence of an exact daily schedule file does not permit an empty or partial briefing. Continue the task reverse lookup and report the schedule-file gap.
 
 # Workflow
 
 1. Build a source inventory with `found`, `missing`, or `not applicable` for:
+   - briefing cache
    - exact daily schedule
    - recurring reminders
    - central checklist
@@ -71,7 +79,22 @@ The absence of an exact daily schedule file does not permit an empty or partial 
 7. Choose at most two `직접 구현` focus items unless the human asks for more.
 8. List follow-up checks separately with owner, next action, and aging risk.
 9. Mark items intentionally excluded from focus and explain why.
-10. Run the completeness gate before answering.
+10. Store the completed briefing in MCP when it was newly generated:
+   - Path: `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`
+   - Type: `file`, extension `md`, MIME `text/markdown`, sourceType `db`
+   - Include: briefing date, generated timestamp, cache policy, source inventory, final briefing text, and source paths.
+   - Summary: `Morning briefing cache for YYYY-MM-DD`
+11. Run the completeness gate before answering.
+
+# Cache Policy
+
+- Cache key: briefing date only, using `YYYY-MM-DD`.
+- Cache path: `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`.
+- On any briefing request, check this path first after resolving the date.
+- If found, return the cached briefing content directly and state that it came from the MCP cache.
+- If the user asks for refresh, regenerate, update, latest, 최신화, 다시 정리, or 캐시 무시, bypass the cache, rebuild the briefing, overwrite the same cache path, and return the refreshed briefing.
+- If a cached briefing is returned, do not perform expensive checklist, task, raw log, or project scans.
+- If MCP cache write fails after generating a briefing, still answer but disclose that cache storage failed.
 
 # Completeness Gate
 
@@ -83,6 +106,7 @@ Do not publish the briefing until all checks pass:
 - Schedule and task records are cross-checked. If a dated task is absent from the daily schedule, include the task and report `일정 원장 누락`.
 - Conflicting status or dates are shown as a discrepancy; do not silently choose one source.
 - Missing source files are disclosed.
+- Newly generated briefings are cached in MCP before publishing, or cache-write failure is disclosed.
 - Every included item has a source path.
 - Every Dooray/Cardtalk work item includes `#number` and the **documented ticket title** (or `(제목 미기록 — 확인 필요)`).
 
