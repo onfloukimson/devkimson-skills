@@ -1,258 +1,246 @@
 ---
 name: morning-briefing
-description: Use when producing or reusing a cached daily KPA work briefing. First check today's MCP briefing cache, return it when present, and only reconcile schedules, reminders, active tasks, daily logs, and project records when no cache exists or a refresh is requested.
+description: Use when producing or reusing a cached daily KPA work briefing. Acts as a personal-assistant-style work judgment system—not a summarizer. Check today's MCP briefing cache first; on miss or refresh, reconcile MCP sources, run 12-step analysis, judge priorities/conflicts/overload, and deliver a concise actionable briefing that protects the user's time.
 ---
 
 # Purpose
 
-Produce a complete daily work briefing that reduces cognitive load without omitting dated deployments, deadlines, verification, or follow-up work.
+Produce a **personal-assistant-style daily work briefing** that judges priorities, detects conflicts and overload, and protects the user's time—not a passive summary of tasks.
 
-Prioritize token efficiency. A briefing generated once for a date should be stored as an MCP resource and reused for later same-day briefing requests.
+KPA **judges**; MCP **provides data** only (read/cache write). Distinguish documented facts from `(추론)`; route ambiguity to `확인 필요`.
+
+Prioritize token efficiency. A briefing generated once for a date is stored as an MCP resource and reused for later same-day requests unless refresh is requested.
+
+Design reference: `ai-workspace/50-artifacts/kpa-briefing-skill/` phases 01–06.
 
 # Required Knowledge
 
-- `AGENTS.md` sections `0.4.1`, `0.7.1`, `0.13.1`, and `0.14`
-- Target-date schedule under `ai-workspace/41-personal-schedule/daily/`
-- Relevant recurring reminders under `ai-workspace/42-notification-reminders/entries/`
+- `AGENTS.md` MCP-first rules and sections `0.4.1`, `0.7.1`, `0.13.1`, `0.14`
+- Target-date schedule: `ai-workspace/41-personal-schedule/daily/`
+- Recurring reminders: `ai-workspace/42-notification-reminders/entries/`
 - `ai-workspace/40-tasks/checklist.md`
-- Active task records directly under `ai-workspace/40-tasks/`
-- Relevant raw daily logs under `ai-workspace/40-tasks/daily/raw/`
-- Relevant project metadata under `ai-workspace/95-projects/active/`
-- Relevant project rules and history under `ai-workspace/70-knowledge/domains/`
-- Cached briefing resource under `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`
+- Active task records under `ai-workspace/40-tasks/`
+- Raw daily logs: `ai-workspace/40-tasks/daily/raw/`
+- Project metadata: `ai-workspace/95-projects/active/`
+- Domain knowledge: `ai-workspace/70-knowledge/domains/`
+- Briefing cache: `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`
+
+# Persona (Brief)
+
+- Protect time, focus, and mobility; do not present impossible days as normal.
+- Be honest about overload; suggest defer/split/delegate—not pressure.
+- Propose direction; user retains final priority.
+- Concise Korean bullets; one judgment per line where possible.
 
 # Inputs
 
 - Date or relative date for the briefing.
-- Optional project focus such as Cardtalk, Daldal English, SLP, or Nuvia.
-- Optional human-provided constraints such as meetings, deadlines, deployment windows, or blocked items.
+- Optional project focus (Cardtalk, Daldal English, SLP, Nuvia, etc.).
+- Optional human constraints (meetings, deadlines, deployment windows, blocked items).
 
-# Mandatory Source Lookup
+# Mandatory Source Lookup (MCP — data only)
 
-Use the DB-backed `agent_mcp` virtual filesystem first for ordinary workspace records. Use local files only for runtime files or when MCP is unavailable, and disclose that fallback.
+Use DB-backed `agent_mcp` virtual filesystem first. Local `ai-workspace/` only when MCP is unavailable; disclose fallback.
 
-For every briefing, perform this lookup in order:
+1. Resolve requested date to `YYYY-MM-DD`.
+2. Check cache: `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`
+3. If cache exists and user did **not** request refresh (`refresh`, `regenerate`, `update`, `latest`, `최신화`, `다시 정리`, `캐시 무시`): read cache and return `briefing_text`. Do not re-scan sources.
+4. If cache missing or refresh requested: continue full lookup; store result at cache path before answering.
+5. Daily schedule: `ai-workspace/41-personal-schedule/daily/YYYY-MM-DD.md`
+6. Recurring reminders applicable to target date.
+7. `ai-workspace/40-tasks/checklist.md`
+8. Active tasks under `ai-workspace/40-tasks/` (exclude templates, indexes, `done.md`, `daily/`).
+9. Select tasks where body contains: target/deployment/deadline/verification/follow-up date = briefing date; implementation-done-awaiting-deploy; overdue or date-unknown open follow-up.
+10. Target-date raw log; prior raw log if unfinished work carries over.
+11. For selected project tasks: project metadata → `rules.md` → linked knowledge as needed.
 
-1. Resolve the requested date to an absolute `YYYY-MM-DD` date.
-2. Look for the exact briefing cache path:
-   - `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`
-3. If the cache exists, read it and return its stored briefing content. Do not re-run the full source lookup unless the user explicitly asks to refresh, regenerate, update, latest, 최신화, 다시 정리, or 캐시 무시.
-4. If the cache does not exist, continue the full source lookup below and store the final briefing at the cache path before answering.
-5. Look for the exact target-date schedule path:
-   - `ai-workspace/41-personal-schedule/daily/YYYY-MM-DD.md`
-6. Read active recurring reminders whose recurrence applies to the target date.
-7. Read `ai-workspace/40-tasks/checklist.md`.
-8. List and inspect active task records directly under `ai-workspace/40-tasks/`, excluding templates, indexes, `done.md`, and `daily/`.
-9. Select every task whose body contains any of the following:
-   - target date, deployment date, deadline, verification date, or follow-up date equal to the briefing date
-   - status indicating implementation complete but deployment, QA, verification, approval, or reporting remains
-   - overdue or date-unknown follow-up that still has an open completion criterion
-10. Read the target-date raw log when present. Also read the latest prior raw log when it contains unfinished work carried into the target date.
-11. For selected project tasks, read project metadata first, then project `rules.md`, then only the linked knowledge records needed to verify status and scope.
-
-The absence of an exact daily schedule file does not permit an empty or partial briefing. Continue the task reverse lookup and report the schedule-file gap.
+Missing daily schedule file does **not** permit empty briefing. Reverse-lookup tasks and report schedule gap.
 
 # Workflow
 
-1. Build a source inventory with `found`, `missing`, or `not applicable` for:
-   - briefing cache
-   - exact daily schedule
-   - recurring reminders
-   - central checklist
-   - active task records
-   - raw logs
-   - linked project records
-2. Build one candidate item list from all sources before prioritizing.
-3. Deduplicate the same work across schedule, checklist, task, raw log, and project history.
-4. Split each item into exactly one execution group:
-   - `직접 구현`: code, publishing, frontend, API, DB, BO, configuration, or script changes the human or Nova must actively perform.
-   - `검증/배포`: staging, production, QA, merge, release, smoke test, Dooray state follow-up, or post-deploy confirmation.
-   - `외부 대기`: assignee reply, policy decision, design/spec confirmation, access/account, client/team response, or date-dependent external confirmation.
-   - `보고/정리`: daily report, briefing, Dooray comment draft, task/checklist update, raw log, knowledge entry, or stakeholder summary.
-5. Evaluate every candidate against the briefing date:
-   - documented status and evidence date
-   - target, deployment, deadline, or follow-up date
-   - remaining prerequisite or completion criterion
-   - next concrete action and owner
-   - risk of waiting until the next work window
-6. Include all items explicitly dated for the briefing date. The one-or-two-item focus limit applies only to `직접 구현`; it must never hide same-day deployments, verification, deadlines, meetings, or required reports.
-7. Choose at most two `직접 구현` focus items unless the human asks for more.
-8. List follow-up checks separately with owner, next action, and aging risk.
-9. Mark items intentionally excluded from focus and explain why.
-10. Store the completed briefing in MCP when it was newly generated:
-   - Path: `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`
-   - Type: `file`, extension `md`, MIME `text/markdown`, sourceType `db`
-   - Include: briefing date, generated timestamp, cache policy, source inventory, final briefing text, and source paths.
-   - Summary: `Morning briefing cache for YYYY-MM-DD`
-11. Run the completeness gate before answering.
+## A. Source inventory & candidates (MCP data)
 
-# Cache Policy
+1. Record `found` / `missing` / `not applicable` for: cache, schedule, reminders, checklist, tasks, raw logs, projects.
+2. Build one deduplicated candidate list from all sources.
+3. Assign each item exactly one execution type:
+   - `직접 구현`: code, FE, API, DB, BO, config, scripts.
+   - `검증/배포`: staging, prod, QA, merge, release, smoke, Dooray follow-up.
+   - `외부 대기`: assignee reply, policy, design confirm, access, client response.
+   - `보고/정리`: report, briefing, Dooray draft, checklist/raw log update.
 
-- Cache key: briefing date only, using `YYYY-MM-DD`.
-- Cache path: `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`.
-- On any briefing request, check this path first after resolving the date.
-- If found, return the cached briefing content directly and state that it came from the MCP cache.
-- If the user asks for refresh, regenerate, update, latest, 최신화, 다시 정리, or 캐시 무시, bypass the cache, rebuild the briefing, overwrite the same cache path, and return the refreshed briefing.
-- If a cached briefing is returned, do not perform expensive checklist, task, raw log, or project scans.
-- If MCP cache write fails after generating a briefing, still answer but disclose that cache storage failed.
+## B. Twelve-step analysis (KPA judgment — internal)
 
-# Completeness Gate
+Run before final briefing. May record as `analysis_json` in cache (schema version `1`). Do not dump full JSON to user unless asked.
 
-Do not publish the briefing until all checks pass:
-
-- Every exact-date schedule item appears in the briefing or in `오늘 제외` with a reason.
-- Every active task whose deployment, deadline, verification, or follow-up date equals the briefing date appears in the briefing.
-- `IMPLEMENTATION_DONE_WAITING_DEPLOYMENT` and equivalent states are treated as open `검증/배포`, not completed work.
-- Schedule and task records are cross-checked. If a dated task is absent from the daily schedule, include the task and report `일정 원장 누락`.
-- Conflicting status or dates are shown as a discrepancy; do not silently choose one source.
-- Missing source files are disclosed.
-- Newly generated briefings are cached in MCP before publishing, or cache-write failure is disclosed.
-- Every included item has a source path.
-- Every Dooray/Cardtalk work item includes `#number` and the **documented ticket title** (or `(제목 미기록 — 확인 필요)`).
-
-# Briefing-Date Judgment
-
-- Use the requested briefing date as the temporal baseline.
-- Consider deadline proximity, remaining work, dependencies, verification windows, and waiting time together.
-- A `진행 중` item may still need a same-day decision or verification.
-- A `미착수` item with a distant deadline may be intentionally excluded from focus.
-- A `완료` implementation may still require deployment, post-deploy verification, Dooray status follow-up, or reporting.
-- An overdue or deadline-unknown item must surface the missing evidence needed to assess it.
-- Clearly label documented facts and inference. Never invent a deadline, completion state, owner, or dependency.
-
-# Verification Deploy Status Wording
-
-When describing deployment or verification items in briefings, always separate:
-
-1. **Scheduled verification deploy date** — `검증 배포 예정일 YYYY-MM-DD` (sprint, bundle, or ticket schedule)
-2. **Current environment state as of briefing date** — `현재(YYYY-MM-DD) 기준 …`
+| Step | Focus |
+|------|--------|
+| 1 | Must-do today (documented same-day obligations) |
+| 2 | Deadline-imminent (D+0–2, overdue) |
+| 3 | Next-up (after must-do, not blocked) |
+| 4 | Time conflicts (overlapping intervals) |
+| 5 | Location/mobility conflicts (e.g. Seoul meeting + regional trip) |
+| 6 | Prerequisite/follow-up (follow-up before prerequisite done) |
+| 7 | Parallel feasibility (what can overlap vs avoid context-switch) |
+| 8 | Workload overload (unrealistic same-day volume) |
+| 9 | Delay impact (what hurts if slipped today) |
+| 10 | Defer / delegate / split candidates |
+| 11 | Ambiguous items → confirmation questions |
+| 12 | Secretary advice (adjust, ask, KPA tracking) |
 
 Rules:
 
-- If verification environment already has the deployment before the official schedule date, state both explicitly.
-- Do not say only `검증 배포 완료` when a separate scheduled date exists in sources.
-- Do not say only `검증 배포 예정` when verification environment already reflects the deployment before that date.
-- Apply to Cardtalk bundle deploys, sprint verification deploys, and individual ticket staging work alike.
-- For completed verification work, do not surface the item in `외부 대기`, `후속 확인`, or open `검증/배포` unless a new dated obligation exists in sources.
+- Never invent deadlines, owners, completion, or dependencies.
+- Label inference `(추론)`. Missing evidence → `확인 필요` section.
+- External waiting is not urgent direct implementation unless evidence supports it.
+- Overload: flag honestly; still list must-dos; recommend deferrals in `비서 의견`.
+
+## C. Final briefing & cache
+
+1. Map analysis to **five output sections** (fixed order, below).
+2. Run completeness gate.
+3. Store in MCP when newly generated:
+   - Path: `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`
+   - Include: `briefing_date`, `generated_at`, cache policy, `source_inventory`, optional `analysis_json`, `briefing_text`, `sources`
+   - Summary: `Morning briefing cache for YYYY-MM-DD`
+4. If cache write fails, answer anyway and disclose failure.
+
+# Cache Policy
+
+- Key: briefing date `YYYY-MM-DD` only.
+- Hit: return cached `briefing_text`; state MCP cache origin.
+- Refresh keywords bypass cache and overwrite same path.
+- On cache hit without refresh: no expensive checklist/task/log/project scans.
+
+# Output (user-facing — fixed order)
+
+Use this structure. Korean for user text.
+
+```text
+# KPA 브리핑 — YYYY-MM-DD
+
+> 캐시: hit|miss|refresh · 생성: ISO-8601
+
+## 오늘의 핵심
+- **오늘 반드시 처리**: …
+- **가장 먼저 볼 것**: …
+- **지연 시 영향 큼**: …
+
+## 일정/업무 충돌
+- **시간 충돌**: … (없으면 "없음")
+- **장소 충돌**: …
+- **업무량 과부하**: …
+- **선행 작업 미완료**: …
+
+## 권장 진행 순서
+1. …
+2. …
+3. … (나중으로 미룰 수 있는 것)
+
+## 비서 의견
+- **조정**: 오늘 무리하지 않기 위한 변경
+- **확인 요청**: 사용자에게 물을 것
+- **위임·연기·분리**: 구체 후보
+
+## 확인 필요
+- 정보 부족, 마감/담당/상태 불명, 일정·태스크 불일치
+
+---
+출처: …
+```
+
+Guidance:
+
+- **오늘 반드시 처리**: all same-day deployments, deadlines, meetings, verification, required reports (never hide to enforce focus limits).
+- **가장 먼저 볼 것**: one or two items by impact and sequence (default cap on *focus*, not on must-do disclosure).
+- **권장 순서**: typically 1–2 do-first, 3 deferrable; overload → more in slot 3.
+- Execution-type grouping lives in analysis only—not a separate user section.
+
+# Completeness Gate
+
+Do not publish until:
+
+- Every same-day schedule item appears in briefing or is explained under overload/defer with reason.
+- Every task with deployment/deadline/verification/follow-up = briefing date is included.
+- `IMPLEMENTATION_DONE_WAITING_DEPLOYMENT` = open `검증/배포`, not done.
+- Schedule vs task cross-check: dated task missing from schedule → include + `일정 원장 누락`.
+- Conflicting status/dates shown; never silent pick.
+- Missing sources disclosed.
+- New briefings cached or cache failure disclosed.
+- Every item has source path(s).
+- Every Dooray/Cardtalk line: `#number` + **full documented title** (or `(제목 미기록 — 확인 필요)`).
+- Time/location conflicts assessed (Step 4–5); state "없음" if none.
+- Overload assessed (Step 8); state clearly if none.
+
+# Briefing-Date Judgment
+
+- Baseline: requested briefing date.
+- Weigh deadline proximity, remaining work, dependencies, verification windows, waiting time.
+- `진행 중` may still need same-day decision or verification.
+- `미착수` with distant deadline → defer in recommended order, not hidden must-do.
+- `완료` implementation may still need deploy, QA, Dooray, reporting.
+- Overdue/unknown deadline: surface missing evidence; ask in `확인 필요`.
+
+# Verification Deploy Status Wording
+
+Separate always:
+
+1. **Scheduled verification deploy** — `검증 배포 예정일 YYYY-MM-DD`
+2. **Current environment as of briefing date** — `현재(YYYY-MM-DD) 기준 …`
+
+- If verification env already has deploy before schedule, state both.
+- Do not say only `검증 배포 완료` when schedule date exists.
+- Do not say only `검증 배포 예정` when env already reflects deploy.
+- Completed verification: omit from open `검증/배포` / `외부 대기` unless new dated obligation exists.
 
 Examples:
 
 - `#135 · 검증 배포 예정일 2026-06-17 14:00 · 현재(2026-06-16) 기준 개발계·FE 연동 완료, 검증계는 내일 예정`
-- `CT-23 · 1차 묶음 검증 배포 예정일(로드맵) 별도 · 현재(2026-06-16) 기준 검증계 배포 완료(2026-06-15), 운영 배포 대기`
-- `#498/#505 · 별도 예정일 없음 · 현재(2026-06-16) 기준 검증계 배포(2026-05-28)·검증 완료 — 브리핑 제외`
+- `CT-23 · 현재(2026-06-16) 기준 검증계 배포 완료(2026-06-15), 운영 배포 대기`
 
 # Ticket Label Format
 
-Humans cannot identify work from ticket numbers alone. Every briefing line that references Dooray or Cardtalk work MUST include the **full ticket title** from source records, not just `#N` or `CT-N`.
-
-## Required pattern
-
-Use this order:
+Every Dooray/Cardtalk reference: **number + full title**.
 
 ```txt
-#<number> `<Dooray title as recorded>`
+#<number> `<Dooray title>`
+CT-<n> / #<number> `<Dooray title>`
+[Project] CT-23 / #23 `title`
 ```
 
-When both CT alias and Dooray number exist:
-
-```txt
-CT-<n> / #<number> `<Dooray title as recorded>`
-```
-
-Optional project prefix when it reduces ambiguity:
-
-```txt
-[Cardtalk] CT-23 / #23 `[06/01] OX퀴즈판 정/오답 최소 문항 개수 정책 제외 건`
-[Daldal] #135 `(05/28) 달달영어 공통_서비스 점검 페이지_시크릿 게이트 작업 요청`
-```
-
-## Rules
-
-- Never publish a briefing bullet that is only `#135`, `#23`, or `CT-17`.
-- Prefer the exact Dooray title string from task/knowledge metadata (`Title`, `Dooray Metadata`, checklist task name).
-- If title is missing in sources, write `#N (제목 미기록 — 확인 필요)` and do not invent a title.
-- Bundle or sprint lines must still list **each ticket with its title**, or one bundle line plus an indented sub-list with `#N + title` per item.
-- Tables (`후속 확인`, `실행 유형별`) must have a **제목** column or embed title in the label cell.
-
-## Bad vs good
-
-Bad:
-
-```txt
-- CT-23 검증계 배포 완료
-- #135 내일 검증 배포
-- #4, #5, #12 1차 완료
-```
-
-Good:
-
-```txt
-- CT-23 / #23 `[06/01] OX퀴즈판 정/오답 최소 문항 개수 정책 제외 건` — 검증계 배포 완료, 운영 대기
-- #135 `(05/28) 달달영어 공통_서비스 점검 페이지_시크릿 게이트 작업 요청` — 검증 배포 예정일 2026-06-17 14:00
-- 1차 개발 묶음:
-  - #4 `[04/14] 메인 검색 영역 개선`
-  - #5 `[04/20] 이용 안내 버튼 변경`
-  - #12 `[05/12] 보너스 카드 툴팁 추가 건`
-  - #23 `[06/01] OX퀴즈판 정/오답 최소 문항 개수 정책 제외 건`
-```
-
-# Output
-
-- `오늘 필수 일정`: all same-day deployments, deadlines, meetings, verification, and reporting obligations.
-- `오늘 집중`: one or two direct implementation focus items.
-- `실행 유형별 목록`: `직접 구현`, `검증/배포`, `외부 대기`, `보고/정리`.
-- `후속 확인 누적 방지`: open checks with owner, next action, and aging risk.
-- `KPA가 맡을 것`: tracking, reminders, report drafting, and status reconciliation.
-- `사람이 직접 할 것`: implementation, approval, business judgment, external communication requiring human voice, and risky operations.
-- `오늘 제외`: intentionally deferred items and reasons.
-- `일정·태스크 정합성`: missing schedule records, conflicting statuses, and missing evidence.
-- `출처`: paths used for the briefing.
+- Never `#135` or `CT-17` alone.
+- Missing title: `#N (제목 미기록 — 확인 필요)` — do not invent.
+- Bundles: each ticket with title in sub-list.
 
 # Safety Rules
 
-- Do not claim completion from missing evidence.
-- Do not convert external waiting into a human implementation task.
-- Do not include private personal schedule details unless needed for workload planning.
-- Do not create new tasks or update status unless the user requested state changes.
-- Keep project facts separate from inference.
-- Do not judge urgency from status labels alone.
-- Do not treat the briefing date as the deadline unless a source explicitly says so.
-- Prefer fewer direct focus items, but never omit same-day mandatory work.
+- Do not claim completion without evidence.
+- Do not convert external waiting into human implementation.
+- No private schedule detail unless needed for workload/mobility.
+- Do not create/update tasks or schedule without user request.
+- Facts vs inference separated; no urgency from status label alone.
+- Do not treat briefing date as deadline unless source says so.
+- Prefer fewer direct focus items in *order*, but never omit same-day mandatory work.
+- Do not present overload as achievable without adjustment advice.
 
 # KPA Ownership Defaults
 
-KPA should proactively own:
+KPA owns: daily judgment briefing, schedule/task reconciliation, conflict/overload detection, recommended order, confirmation questions, follow-up aging, execution-type classification (internal), status diffs, report draft prep when asked.
 
-- daily priority briefing
-- mandatory schedule and active-task reconciliation
-- grouping work by execution type
-- follow-up check aging and resurfacing
-- distinguishing direct work from waiting states
-- report draft generation from raw logs
-- status diffs across schedule, checklist, tasks, daily logs, and project history
-
-The human should retain:
-
-- final priority override
-- architecture and product judgment
-- code implementation when not delegated
-- external stakeholder replies unless explicitly drafted for review
-- destructive, production, credential, or migration approval
+Human retains: final priority, architecture/product judgment, implementation, external voice, destructive/prod/credential approval.
 
 # Incident References
 
-- 2026-06-11: Cardtalk CT-24 revision-year removal production deployment was omitted because no exact-date schedule file existed and the previous workflow did not require reverse lookup of active task records by deployment date.
-- 2026-06-16: Cardtalk June 1st bundle (#4/#5/#12/#23) was under-represented in briefing because deployment history named only CT-23 explicitly and lines used ticket numbers without titles, reducing scanability and causing completed bundle work to look like only the OX ticket mattered.
+- 2026-06-11: CT-24 prod deploy omitted—no schedule file; reverse task lookup now mandatory.
+- 2026-06-16: June bundle under-represented; ticket numbers without titles reduced scanability.
 
 # Verification
 
-- Exact-date schedule lookup was attempted and its presence or absence is disclosed.
-- Active task records were inspected, not only the central checklist.
-- Every same-day deployment, deadline, verification, meeting, and reporting obligation is included.
-- Every listed item belongs to exactly one execution group.
-- Focus contains no more than two direct implementation items by default.
-- Follow-up checks include a concrete next action or are explicitly marked unclear.
-- Waiting items are not presented as urgent direct implementation unless evidence supports it.
-- Inferred urgency, risk, or relationship is clearly distinguished from documented facts.
-- Source paths are included.
-- Every Dooray/Cardtalk item shows ticket number **and** documented title (not number-only bullets).
+- Schedule lookup attempted; presence/absence disclosed.
+- Active tasks inspected, not checklist only.
+- Same-day deploy/deadline/verification/meeting/report included.
+- Twelve-step analysis performed on cache miss/refresh.
+- Five-section output in fixed order.
+- Conflicts, overload, prerequisite gaps surfaced or marked none.
+- Inference labeled; ambiguity in `확인 필요`.
+- Source paths listed.
+- Ticket number **and** title on every work item line.
