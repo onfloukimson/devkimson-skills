@@ -1,0 +1,4 @@
+interface:
+  display_name: "NestJS TypeORM Transactional"
+  short_description: "이식 가능한 NestJS TypeORM 트랜잭션 구성"
+  default_prompt: "Use $nestjs-typeorm-transactional to add or audit transaction boundaries in a NestJS TypeORM project."
