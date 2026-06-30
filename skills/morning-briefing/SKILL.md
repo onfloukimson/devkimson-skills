@@ -1,6 +1,6 @@
 ---
 name: morning-briefing
-description: Use when producing or reusing a cached daily KPA work briefing. Acts as a personal-assistant-style work judgment system—not a summarizer. Check today's MCP briefing cache first; on miss or refresh, reconcile MCP sources, run 12-step analysis, judge priorities/conflicts/overload, and deliver a concise actionable briefing that protects the user's time.
+description: Use when producing or reusing a cached daily KPA work briefing. Acts as a personal-assistant-style work judgment system—not a summarizer. Validate cache coverage, reconcile every active project's today/current-week schedule with the same audit standard, run 12-step analysis, judge priorities/conflicts/overload, and deliver a concise actionable briefing that protects the user's time.
 ---
 
 # Purpose
@@ -11,17 +11,19 @@ KPA **judges**; MCP **provides data** only (read/cache write). Distinguish docum
 
 Prioritize token efficiency. A briefing generated once for a date is stored as an MCP resource and reused for later same-day requests unless refresh is requested.
 
+Apply one project-neutral audit standard. Cardtalk and Daldal English are current peer projects, not primary/secondary projects. Discover future projects dynamically and evaluate them with the same schedule, prerequisite, workload, and delay-impact checks. Equal audit depth does not require equal output length; evidence and urgency determine emphasis.
+
 Design reference: `ai-workspace/50-artifacts/kpa-briefing-skill/` phases 01–06.
 
 # Required Knowledge
 
 - `AGENTS.md` MCP-first rules and sections `0.4.1`, `0.7.1`, `0.13.1`, `0.14`
-- Target-date schedule: `ai-workspace/41-personal-schedule/daily/`
+- Target-date and current-week schedules: `ai-workspace/41-personal-schedule/daily/`
 - Recurring reminders: `ai-workspace/42-notification-reminders/entries/`
 - `ai-workspace/40-tasks/checklist.md`
 - Active task records under `ai-workspace/40-tasks/`
 - Raw daily logs: `ai-workspace/40-tasks/daily/raw/`
-- Project metadata: `ai-workspace/95-projects/active/`
+- Active-project registry: `ai-workspace/95-projects/active/`
 - Domain knowledge: `ai-workspace/70-knowledge/domains/`
 - Briefing cache: `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`
 
@@ -44,25 +46,49 @@ Use DB-backed `agent_mcp` virtual filesystem first. Local `ai-workspace/` only w
 
 1. Resolve requested date to `YYYY-MM-DD`.
 2. Check cache: `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`
-3. If cache exists and user did **not** request refresh (`refresh`, `regenerate`, `update`, `latest`, `최신화`, `다시 정리`, `캐시 무시`): read cache and return `briefing_text`. Do not re-scan sources.
-4. If cache missing or refresh requested: continue full lookup; store result at cache path before answering.
-5. Daily schedule: `ai-workspace/41-personal-schedule/daily/YYYY-MM-DD.md`
-6. Recurring reminders applicable to target date.
-7. `ai-workspace/40-tasks/checklist.md`
-8. Active tasks under `ai-workspace/40-tasks/` (exclude templates, indexes, `done.md`, `daily/`).
-9. Select tasks where body contains: target/deployment/deadline/verification/follow-up date = briefing date; implementation-done-awaiting-deploy; overdue or date-unknown open follow-up.
-10. Target-date raw log; prior raw log if unfinished work carries over.
-11. For selected project tasks: project metadata → `rules.md` → linked knowledge as needed.
+3. On a cache hit without an explicit refresh keyword, run a **lightweight coverage probe** before reuse:
+   - `calendar_today`
+   - `calendar_week` from target date through the next 7 days
+   - active-project registry
+   - target-date raw-log metadata/existence
+4. Compare the probe with cache fields `schedule_horizon`, `project_coverage`, and `source_inventory`.
+   - If the cache lacks these fields, omits a probed dated item/project, or predates a same-day human work update, treat it as incomplete and regenerate.
+   - If coverage matches, return cached `briefing_text` without the expensive task/log/project scan.
+5. On cache miss, refresh, or incomplete coverage: continue full lookup and store the result before answering.
+6. Read every daily schedule from the target date through:
+   - the end of the current workweek; and
+   - D+7 for the next fixed review, meeting, verification, correction, deployment, or deadline that requires earlier preparation.
+7. Read recurring reminders applicable to the target date and schedule horizon.
+8. Read `ai-workspace/40-tasks/checklist.md`.
+9. Build the project set dynamically from:
+   - `ai-workspace/95-projects/active/`;
+   - projects referenced by schedule/reminder/task/raw-log candidates; and
+   - projects with a dated D+0–7 obligation.
+10. Inspect active tasks under `ai-workspace/40-tasks/` (exclude templates, indexes, `done.md`, `daily/`).
+11. Select tasks where body contains: target/deployment/deadline/verification/follow-up date within D+0–7; implementation-done-awaiting-deploy; overdue or date-unknown open follow-up.
+12. Read target-date raw log and prior raw log when unfinished work carries over.
+13. For **each selected project**, read metadata → `rules.md` → linked knowledge/history needed to determine current state and prerequisites.
 
-Missing daily schedule file does **not** permit empty briefing. Reverse-lookup tasks and report schedule gap.
+Missing target-date schedule does **not** permit an empty briefing. Reverse-lookup tasks and nearby schedules, then report the gap.
+
+Do not stop after finding one project's meeting or a project with richer documentation. A project is covered only after its same-day, next-day, current-week, and preparation-relevant D+7 items have been checked.
 
 # Workflow
 
 ## A. Source inventory & candidates (MCP data)
 
-1. Record `found` / `missing` / `not applicable` for: cache, schedule, reminders, checklist, tasks, raw logs, projects.
+1. Record `found` / `missing` / `not applicable` for: cache, target-date schedule, schedule horizon, reminders, checklist, tasks, raw logs, active-project registry, and per-project rules/history.
 2. Build one deduplicated candidate list from all sources.
-3. Assign each item exactly one execution type:
+3. Build a **project coverage matrix** with one row per dynamically discovered project:
+   - today;
+   - next day;
+   - current week / D+7;
+   - current state;
+   - prerequisite or external wait;
+   - delay impact;
+   - source paths.
+4. Apply the same fields and evidence threshold to every project. Never let the first project found suppress later projects.
+5. Assign each item exactly one execution type:
    - `직접 구현`: code, FE, API, DB, BO, config, scripts.
    - `검증/배포`: staging, prod, QA, merge, release, smoke, Dooray follow-up.
    - `외부 대기`: assignee reply, policy, design confirm, access, client response.
@@ -100,16 +126,17 @@ Rules:
 2. Run completeness gate.
 3. Store in MCP when newly generated:
    - Path: `ai-workspace/50-artifacts/briefings/morning/YYYY-MM-DD.md`
-   - Include: `briefing_date`, `generated_at`, cache policy, `source_inventory`, optional `analysis_json`, `briefing_text`, `sources`
+   - Include: `briefing_date`, `generated_at`, cache policy, `schedule_horizon`, `project_coverage`, `source_inventory`, optional `analysis_json`, `briefing_text`, `sources`
    - Summary: `Morning briefing cache for YYYY-MM-DD`
 4. If cache write fails, answer anyway and disclose failure.
 
 # Cache Policy
 
 - Key: briefing date `YYYY-MM-DD` only.
-- Hit: return cached `briefing_text`; state MCP cache origin.
+- Valid hit: lightweight coverage probe matches cached `schedule_horizon` and `project_coverage`; return cached `briefing_text` and state MCP cache origin.
+- Incomplete/stale hit: regenerate when coverage fields are absent, a project/dated item is missing, or a same-day human update is newer than the cache.
 - Refresh keywords bypass cache and overwrite same path.
-- On cache hit without refresh: no expensive checklist/task/log/project scans.
+- On a valid cache hit: do not run the expensive checklist/task/log/project scan.
 
 # Output (user-facing — fixed order)
 
@@ -122,6 +149,9 @@ Use this structure. Korean for user text.
 
 ## 오늘의 핵심
 - **오늘 반드시 처리**: …
+- **프로젝트별 일정**:
+  - **<Project A>**: 오늘 … · 다음 일정 … · 준비/위험 …
+  - **<Project B>**: 오늘 … · 다음 일정 … · 준비/위험 …
 - **가장 먼저 볼 것**: …
 - **지연 시 영향 큼**: …
 
@@ -151,6 +181,7 @@ Use this structure. Korean for user text.
 Guidance:
 
 - **오늘 반드시 처리**: all same-day deployments, deadlines, meetings, verification, required reports (never hide to enforce focus limits).
+- **프로젝트별 일정**: include every project with a D+0–7 dated obligation or an open prerequisite for one. Use dynamically discovered project names; do not hardcode a fixed project list.
 - **가장 먼저 볼 것**: one or two items by impact and sequence (default cap on *focus*, not on must-do disclosure).
 - **권장 순서**: typically 1–2 do-first, 3 deferrable; overload → more in slot 3.
 - Execution-type grouping lives in analysis only—not a separate user section.
@@ -160,11 +191,16 @@ Guidance:
 Do not publish until:
 
 - Every same-day schedule item appears in briefing or is explained under overload/defer with reason.
-- Every task with deployment/deadline/verification/follow-up = briefing date is included.
+- Every next-day meeting/review that requires preparation appears in today's priority or recommended order.
+- Every task with deployment/deadline/verification/follow-up within D+0–7 is represented in the project matrix; D+0–2 items must affect today's judgment unless prerequisites are complete.
+- Every active project with a dated D+0–7 item appears under `프로젝트별 일정` or has an explicit exclusion reason.
+- Every project row was checked with the same fields: today, next day, current week/D+7, state, prerequisite, delay impact, sources.
+- Cardtalk and Daldal English, while active, must both pass the same audit. Apply this rule unchanged to future projects.
 - `IMPLEMENTATION_DONE_WAITING_DEPLOYMENT` = open `검증/배포`, not done.
 - Schedule vs task cross-check: dated task missing from schedule → include + `일정 원장 누락`.
 - Conflicting status/dates shown; never silent pick.
 - Missing sources disclosed.
+- Cache reuse was rejected when `schedule_horizon` or `project_coverage` was absent/incomplete.
 - New briefings cached or cache failure disclosed.
 - Every item has source path(s).
 - Every Dooray/Cardtalk line: `#number` + **full documented title** (or `(제목 미기록 — 확인 필요)`).
@@ -174,7 +210,8 @@ Do not publish until:
 # Briefing-Date Judgment
 
 - Baseline: requested briefing date.
-- Weigh deadline proximity, remaining work, dependencies, verification windows, waiting time.
+- Weigh deadline proximity, remaining work, dependencies, verification windows, waiting time, and the next fixed event for every covered project.
+- Treat a next-day two-hour meeting, review, deployment, or external deadline as a same-day preparation concern when preparation is still open.
 - `진행 중` may still need same-day decision or verification.
 - `미착수` with distant deadline → defer in recommended order, not hidden must-do.
 - `완료` implementation may still need deploy, QA, Dooray, reporting.
@@ -216,6 +253,8 @@ CT-<n> / #<number> `<Dooray title>`
 - Do not claim completion without evidence.
 - Do not convert external waiting into human implementation.
 - No private schedule detail unless needed for workload/mobility.
+- Do not rank projects by name, familiarity, record volume, or discovery order.
+- Equal project treatment means equal audit criteria, not forced equal urgency or equal bullet count.
 - Do not create/update tasks or schedule without user request.
 - Facts vs inference separated; no urgency from status label alone.
 - Do not treat briefing date as deadline unless source says so.
@@ -232,12 +271,15 @@ Human retains: final priority, architecture/product judgment, implementation, ex
 
 - 2026-06-11: CT-24 prod deploy omitted—no schedule file; reverse task lookup now mandatory.
 - 2026-06-16: June bundle under-represented; ticket numbers without titles reduced scanability.
+- 2026-06-30: a pre-existing 2026-07-01 Daldal timetable meeting was omitted because generation read the target-date schedule and prep task but did not require the next-day schedule or project coverage matrix. Cache reuse preserved the omission. Current-week/D+7 coverage and project-neutral auditing are now mandatory.
 
 # Verification
 
-- Schedule lookup attempted; presence/absence disclosed.
+- Target-date, next-day, current-week, and preparation-relevant D+7 schedule lookup attempted; presence/absence disclosed.
 - Active tasks inspected, not checklist only.
+- Active-project set derived dynamically and every represented project audited with the same matrix.
 - Same-day deploy/deadline/verification/meeting/report included.
+- Next-day preparation and every D+0–7 project obligation included or explicitly excluded.
 - Twelve-step analysis performed on cache miss/refresh.
 - Five-section output in fixed order.
 - Conflicts, overload, prerequisite gaps surfaced or marked none.
