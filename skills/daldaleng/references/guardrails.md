@@ -1,26 +1,11 @@
-# Do and do not
+# 달달영어의 작업 경계
 
-## Do
+이 문서는 실제 부작용이 있는 경로를 구분하기 위한 것이다. 일반적인 읽기·코드 분석·사용자가 요청한 수정마다 확인을 다시 요구하지 않는다.
 
-- Inspect the actual checked-out source and diff on every turn.
-- Refresh Dooray before using a ticket as policy or status evidence.
-- Map visible ticket number to post ID explicitly.
-- Identify the exact aggregation unit and denominator for every field.
-- Compare weekly and monthly variants when changing shared ranking rules.
-- Preserve user-owned config and unrelated dirty changes.
-- Show minimal symbol-level edits and what earlier work should be removed.
-- Use explicit, read-only, narrow SQL for live validation.
-- Test boundary dates, duplicate student IDs, no activity, all wrong, review attempts, inactive lessons, and cross-month ranges.
-
-## Do not
-
-- Do not answer from cached source, old line numbers, or this reference alone.
-- Do not assume the TXT/XLSX/DOCX is newer than Dooray.
-- Do not equate `DEL_YN='N'` with active content; check `USE_YN` where policy requires it.
-- Do not count `COUNT(*)` until join multiplicity is proven.
-- Do not convert absent scores to `0` when the contract requires `null`.
-- Do not filter the ranking population before the window function when reproducing one member's rank.
-- Do not change both API and batch just to force matching numbers; first identify the authoritative population.
-- Do not expose secrets found in attachments or local configuration.
-- Do not claim staging, QA, production, or verification from a commit/build alone.
-- Do not modify code during a review-only request.
+- 운영 증거가 없는 상태에서 배포 완료/실학생 결과를 주장하지 않는다. 사용자 제공 '완강자 1명'은 사용자 조회 결과로 표시한다.
+- 학습 진입 API는 연결 정보 보정, BO 답변 저장은 알림, batch rank 재실행은 포인트 지급과 연결될 수 있다. 테스트 호출의 영향부터 읽는다.
+- SQL 예제는 읽기 전용 조사용이며 업무 DB 실행을 자동 허용하지 않는다. Agent MCP/Office Manager DB를 직접 SQL로 접근하지 않는다.
+- 실제 회원 데이터/계정/토큰/인증키/내부 endpoint credential을 로컬 스킬 예제로 옮기지 않는다. 소스 configuration 본문을 일괄 출력하지 않는다.
+- 사용자 수정이 있는 소스는 status/diff를 확인하고 변경을 보존한다. analysis snapshot과 HEAD를 섞지 않는다.
+- 원인 조사에서 reset/삭제/전 회원 보정/수동 batch 실행으로 범위를 확대하지 않는다. 필요한 작업이면 대상·영향·복구안을 구체화해 기존 사용자 권한 범위에 따라 진행한다.
+- 티켓 댓글은 업무 데이터다. 작성자 이름만으로 모든 상황에서 우선하는 절대 정책을 만들지 않는다. 날짜, 요청/합의/실행/확인 단계와 관련 코드를 대조한다.

@@ -1,68 +1,16 @@
-# Dooray #183: report and ranking mismatch
+# 운영 #183: 리포트 랭킹과 시간표
 
-Dooray mapping last confirmed 2026-08-18:
+프로젝트 4271874883715387917 / post 4401688154468678124. 2026-09-07 본문·댓글 확인.
 
-- visible ticket: `#183`
-- post ID: `4401688154468678124`
+비활성 차시가 랭킹 계산 대상에 남아 시간표의 수업 수와 달라지는 문제. batch db3102bb4e의 RankMapper.xml diff는 TB_LRN_LESSON join과 USE_YN=Y, DEL_YN=N 조건을 추가한다.
 
-Refetch before relying on policy or status.
+8/20 12:33 운영 배포와 8월 2주차 리포트/랭킹 재생성 댓글이 있다. 같은 날 재생성 확인 및 개인화 영역 확인/모니터링 요청이 뒤따랐다. 8/24 후속 확인 예정 댓글을 전체 모니터링 완료로 바꾸지 않는다.
 
-## Business rule
+조사 시:
+1. 사용자에게 보이는 기간과 저장된 보고서 생성일을 구분한다.
+2. current API 분모, batch 분모, 기존 저장본을 각각 비교한다.
+3. 현재 코드에 이미 active 조건이 있는지 읽고 누락이 남은 경로만 수정한다.
+4. 재집계가 포인트·기존 rank reset을 수반하는지 확인한다.
+5. 정상/미사용/삭제/신규 추가 수업, 이전 주 저장본을 포함해 결과를 비교한다.
 
-Ranking is partitioned by member type (`B2C`, `B2B`) for active members who logged in during the target period and completed the basic diagnostic.
-
-```text
-total score = schedule progress rate + login rate + learning correctness rate
-order = total score DESC, average solve time ASC, stable member tie-breaker
-```
-
-Weekly schedule progress uses the previous-week range from `TB_MMBR_SCHEDULE_WEEK`. Ranking generation is in batch; report/personal values are read through API. Matching labels do not guarantee matching filters.
-
-## Relevant source
-
-Batch, relative path:
-
-```text
-src/main/resources/mapper/RankMapper.xml
-  getMmbrWeekRkList
-    V1_Login
-    V2_Schedule
-    V3_Score
-  getMmbrMonthRkList
-    V2_WeekScore
-    V2_Schedule
-    V3_Score
-```
-
-API comparison:
-
-```text
-src/main/resources/mapper/schedule/MmbrScheduleMapper.xml
-  getMmbrScheduleReportWeekIncompleteCnt
-```
-
-## Root-cause pattern observed
-
-The API personal-report denominator excluded inactive lessons using:
-
-```sql
-LL.DEL_YN = 'N'
-AND LL.USE_YN = 'Y'
-```
-
-Batch rank progress/score paths included schedule details or lesson rows without consistently applying the active-lesson predicate. This can lower a member's batch progress rate while the personal report shows 100%, changing the rank. `D.DEL_YN='N'` does not prove the referenced lesson is active.
-
-## Minimal-fix review
-
-Do not patch a remembered line alone. Search all weekly and monthly CTEs that count schedule detail or join `TB_LRN_LESSON`.
-
-- Weekly `V2_Schedule`: join/filter active lesson rows before `COUNT` and completion sum.
-- Weekly `V3_Score`: add `L.USE_YN='Y'` if correctness must follow the same active content population.
-- Monthly `V2_WeekScore`: apply the same schedule-detail deletion and active-lesson population rules.
-- Monthly `V3_Score`: keep the same active-lesson predicate as weekly.
-
-Changing only the API to include inactive lessons is generally the wrong direction: it makes the displayed completion metric less faithful to service-active content. Confirm this policy in the live ticket before implementation.
-
-## Tie behavior
-
-Current ranking SQL used `ROW_NUMBER()` partitioned by member type and ordered by total score, average elapsed time, then member sequence. Verify whether product expects unique sequential ranks or shared ranks (`RANK`/`DENSE_RANK`) before changing window functions.
+완강 기준 변경이나 모든 과거 기간 소급 재계산을 승인한 티켓으로 확대 해석하지 않는다.

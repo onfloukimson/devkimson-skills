@@ -1,29 +1,27 @@
-# Project history and rationale
+# 확인한 변경 이력
 
-This is dated context, not current-state proof.
+2026-09-07 기준. Git은 로컬 전체 refs를 검색했다. 아래는 도메인 이해에 필요한 선별 이력이며 모든 커밋 diff를 정밀 리뷰했다는 뜻이 아니다. 티켓과 커밋의 명시 연결이 없는 항목은 같은 주제의 참고 근거다. 현재 HEAD 포함 여부는 MCP Git 인덱스 reachableFromHead로 확인한다.
 
-## 2026-08-18 to 2026-08-19: LMS ticket #174
+| 시점 | 근거 | 의미 |
+|---|---|---|
+| 2월 | api 1c21e37/8d35ef3, batch bd1d0d4/4916aa9 | 초기화/회차 관련 과거 구현. 현재 정책은 완강 분기 재확인 |
+| 3/30 | 운영 #65 | 알림 batch 무한 반복 위험 수정 답변 |
+| 3/30 | 운영 #67 | 리포트 API 처리를 batch로 옮기겠다는 계획. 현재 서비스는 API 호출이 남아 있음 |
+| 4/1 | 운영 #70 | 이용권 상태 동기화 운영 반영 답변. 화~금 00:00 주기 |
+| 5/18~26 | batch e493af2, 운영 #81 | 리포트 알림톡 중지. 5/19 운영 배포·5/26 확인; 노트 답변 알림 유지 |
+| 6월 | batch 2125f73/b11fe8d | 쌍둥이 평가 순위/월간 진도 관련 수정 탐색 지점 |
+| 6/24 | bo 0136bf4 | Thymeleaf 버전 변경 탐색 지점 |
+| 7월 | api 675ecd1/d4debe3 | 쌍둥이 정보 및 완강 초기화 환경 분기 탐색 지점 |
+| 8/10~18 | front d311649e/c068b09d/22cce1ff | 완강 홈/화면 처리 이력 |
+| 8/19~20 | 운영 #145 | 운영에서 수동 완강 시험. 콘텐츠 완성 후 10월 재확인 맥락; 실학생 일반 완강 이력 아님 |
+| 8/19~20 | batch db3102b, 운영 #183 | 실제 diff: 랭킹 집계에 active lesson join. 운영 배포 및 8월 2주 재생성 댓글 |
+| 8/19~27 | api 98fea86/558fb55/b9313ab, 운영 #174 | today/weekly/monthly 구현과 null 계약 보완 |
+| 8/20~27 | bo 612bca9/bcf905a/332720a | 첨부 표시·회원/노트 최근 로그인 관련 변경 탐색 지점 |
+| 8/27 | front 20e12213 | 실제 diff: 진도/회차 팝업 isLockScroll=false |
+| 8/28 | bo f9a8f57 | 실제 diff: 정오답 표시를 AnswDisplayTypeHandler로 이동 |
+| 9/3~4 | 운영 #174 | LMS 오픈 후 부하 테스트 생략 논의. 부하 테스트 통과로 기록하지 않음 |
+| 9/4 | api b1ec620/10a10f1 | 쌍둥이 연결/INFO_DATA 보정. 이후 working tree 변경 존재 |
+| 9/4 | api f2bfcd2, front 718bf43 | 질문 노트 첨부/음성 생성·수정 작업. 양쪽 필드 계약 대조 필요 |
+| 9/4 | api 9dee01b | 단원 리포트 평균 시간 수정 탐색 지점 |
 
-- The LMS API contract was reconciled across a TXT Q&A, commented XLSX, older DOCX, and Dooray.
-- Decision rule established: latest Ahn Hyo-eun Dooray comment wins when artifacts conflict.
-- API work on branch `fix/lms-api`, commit `98fea86`, covered `/today`, `/weekly`, and `/weekly/students` changes.
-- The only observed uncommitted API file was user-owned `application-local.yml`; it was intentionally excluded.
-- `/monthly` and `/monthly/students` remained follow-up areas at review time.
-- No source/commit observation was treated as QA, staging, production, or runtime verification.
-
-Why `ROUND = 1` exists: learning tables retain review/retry attempts. Product counts initial completion, so later rounds must not inflate content totals or answer rate.
-
-Why `null` matters: no assessment is different from a real zero score. Converting absence to zero misrepresents participation and distorts class averages.
-
-Why request students are the denominator: the LMS passes subscribed service students. Database membership alone may include users outside the requested class/service population.
-
-## 2026-08-18: ranking ticket #183
-
-- A B2C member's personal completion displayed 100%, but batch ranking placed the member below the expected position.
-- Trace showed the API report and batch rank used different content populations: API excluded inactive lessons while batch CTEs did not consistently do so.
-- Minimal correction direction was to align batch weekly/monthly active lesson filters, not to broaden the API report to inactive content.
-- Production SQL was discussed as read-only validation only; source review did not claim live-DB validation.
-
-## Operational lesson
-
-Rank/report bugs often come from population drift rather than arithmetic. Compare date range, member population, content population, attempt round, grouping unit, and null policy before rewriting formulas.
+정례 배포 시각, 현재 운영 SHA, DB schema/index 실물, 전체 과거 기간 보정 여부는 이 자료로 확정하지 않는다. [Dooray](dooray.md)에서 최신 댓글을 다시 확인한다.

@@ -1,4 +1,4 @@
 interface:
-  display_name: "´Ş´Ş¿µ¾î ¿£Áö´Ï¾î¸µ"
-  short_description: "´Ş´Ş¿µ¾î API¡¤¹èÄ¡ ¼Ò½º °ËÅä ¹× ¾ÈÀüÇÑ ¼öÁ¤ °¡ÀÌµå"
-  default_prompt: "Use $daldaleng to inspect the live Daldal English source and review this issue with current policy and repository evidence."
+  display_name: "ë‹¬ë‹¬ì˜ì–´ ê°œë°œ ì§€ì‹"
+  short_description: "ë‹¬ë‹¬ì˜ì–´ 4ê°œ ì €ì¥ì†Œì™€ Dooray ì´ë ¥ì„ ì—°ê²°í•˜ëŠ” ê°œë°œÂ·ìš´ì˜ ì§€ì‹"
+  default_prompt: "Use $daldaleng to trace this Daldal English task through current source, related repositories, Git changes, and Dooray evidence."
